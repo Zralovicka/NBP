@@ -209,7 +209,7 @@ if not check_auth():
     _l, _m, _r = st.columns([2, 1, 2])
     with _m:
         pw = st.text_input("Password", type="password", label_visibility="collapsed", placeholder="Password")
-        if st.button("Enter", use_container_width=True, type="primary"):
+        if st.button("Enter", width="stretch", type="primary"):
             if do_login(pw): st.rerun()
             else: st.error("Wrong password")
     st.stop()
@@ -397,7 +397,7 @@ st.markdown(f"""
 # ---------------------------------------------------------------------------
 if st.session_state.viewing_ref is not None:
     st.subheader("🖼 Reference Image")
-    st.image(st.session_state.viewing_ref, use_container_width=False, width=600)
+    st.image(st.session_state.viewing_ref, width=600)
     if st.button("← Back", key="bkr"):
         st.session_state.viewing_ref = None; st.rerun()
     st.divider()
@@ -409,15 +409,15 @@ elif st.session_state.viewing_image is not None:
         src = img_src(img)
         if src:
             ci, cs = st.columns([3, 1], gap="medium")
-            with ci: st.image(src, use_container_width=True)
+            with ci: st.image(src, width="stretch")
             with cs:
-                if st.button("✕  Close", key="cls", use_container_width=True):
+                if st.button("✕  Close", key="cls", width="stretch"):
                     st.session_state.viewing_image = None; st.rerun()
 
                 st.markdown('<div class="detail-label">✦ PROMPT</div>', unsafe_allow_html=True)
                 st.markdown(f'<div class="detail-prompt-box">{img.get("prompt","—")}</div>', unsafe_allow_html=True)
 
-                if st.button("🔄  Remix", key="rmx", use_container_width=True, type="primary"):
+                if st.button("🔄  Remix", key="rmx", width="stretch", type="primary"):
                     st.session_state.remix_prompt = img.get("prompt", "")
                     st.session_state.remix_refs = get_refs(img)
                     st.session_state.viewing_image = None
@@ -436,7 +436,7 @@ elif st.session_state.viewing_image is not None:
                     for ri, r in enumerate(refs):
                         with rc[ri % len(rc)]:
                             st.image(ref_display(r), width=72)
-                            if st.button("Open", key=f"or{ri}", use_container_width=True):
+                            if st.button("Open", key=f"or{ri}", width="stretch"):
                                 st.session_state.viewing_ref = ref_display(r); st.rerun()
 
                 st.markdown('<div class="detail-label">⚡ ACTIONS</div>', unsafe_allow_html=True)
@@ -444,11 +444,11 @@ elif st.session_state.viewing_image is not None:
                 if dl_bytes:
                     st.download_button("⬇  Download", dl_bytes,
                         f"nb_{img.get('id','x')[:8]}.png", "image/png",
-                        use_container_width=True, key="ddl")
-                if st.button("🖼  Use as Reference", use_container_width=True, key="drf"):
+                        width="stretch", key="ddl")
+                if st.button("🖼  Use as Reference", width="stretch", key="drf"):
                     st.session_state.ref_from_gallery = img; st.session_state.viewing_image = None
                     st.toast("Set as ref!", icon="🖼️"); st.rerun()
-                if st.button("🗑  Delete", use_container_width=True, key="ddl2"):
+                if st.button("🗑  Delete", width="stretch", key="ddl2"):
                     if img.get("id"): delete_from_supabase(img["id"])
                     st.session_state.images.pop(idx); st.session_state.viewing_image = None
                     st.toast("Deleted", icon="🗑️"); st.rerun()
@@ -502,25 +502,25 @@ elif st.session_state.images:
                 src = img_src(img)
                 if not src: continue
                 ai = st.session_state.images.index(img)
-                st.image(src, use_container_width=True)
+                st.image(src, width="stretch")
                 b1, b2, b3, b4 = st.columns(4, gap="small")
                 with b1:
-                    if st.button("👁", key=f"v{ai}", use_container_width=True, help="View"):
+                    if st.button("👁", key=f"v{ai}", width="stretch", help="View"):
                         st.session_state.viewing_image = ai; st.rerun()
                 with b2:
                     dl = get_download_bytes(img)
                     if dl:
                         st.download_button("⬇", dl, f"nb_{img.get('id','x')[:8]}.png",
-                            "image/png", key=f"d{ai}", use_container_width=True)
+                            "image/png", key=f"d{ai}", width="stretch")
                     else:
-                        st.button("⬇", key=f"d{ai}", use_container_width=True, disabled=True)
+                        st.button("⬇", key=f"d{ai}", width="stretch", disabled=True)
                 with b3:
-                    if st.button("🔄", key=f"r{ai}", use_container_width=True, help="Remix"):
+                    if st.button("🔄", key=f"r{ai}", width="stretch", help="Remix"):
                         st.session_state.remix_prompt = img.get("prompt", "")
                         st.session_state.remix_refs = get_refs(img)
                         st.toast("Loaded!", icon="🔄"); st.rerun()
                 with b4:
-                    if st.button("🗑", key=f"x{ai}", use_container_width=True, help="Delete"):
+                    if st.button("🗑", key=f"x{ai}", width="stretch", help="Delete"):
                         if img.get("id"): delete_from_supabase(img["id"])
                         st.session_state.images.pop(ai)
                         if st.session_state.viewing_image == ai: st.session_state.viewing_image = None
@@ -555,16 +555,16 @@ with st.expander(f"📎 References — {len(all_ref_items)} loaded" if has_refs 
         grid_cols = st.columns(min(len(display_items), 7), gap="small")
         for i, (label, src) in enumerate(display_items):
             with grid_cols[i % len(grid_cols)]:
-                st.image(src, width=80, use_container_width=False)
+                st.image(src, width=80)
                 st.caption(label)
         c1, c2 = st.columns(2)
         with c1:
             if st.session_state.ref_from_gallery:
-                if st.button("✕ Clear gallery ref", key="rmg", use_container_width=True):
+                if st.button("✕ Clear gallery ref", key="rmg", width="stretch"):
                     st.session_state.ref_from_gallery = None; st.rerun()
         with c2:
             if st.session_state.remix_refs:
-                if st.button("✕ Clear remix refs", key="clr", use_container_width=True):
+                if st.button("✕ Clear remix refs", key="clr", width="stretch"):
                     st.session_state.remix_refs = None; st.rerun()
 
 
@@ -577,7 +577,7 @@ with p1: prompt = st.text_input("P", value=dp, placeholder="Describe the scene y
 with p2: ar = st.selectbox("AR", ASPECT_RATIOS, 0, key="ars", label_visibility="collapsed")
 with p3: res = st.selectbox("Res", RESOLUTIONS, 1, key="rss", label_visibility="collapsed")
 with p4: batch = st.selectbox("B", range(1, MAX_BATCH+1), 0, key="bss", format_func=lambda x: f"{x}/{MAX_BATCH}", label_visibility="collapsed")
-with p5: gen = st.button(f"Generate ⚡ {batch}", key="gb", type="primary", use_container_width=True)
+with p5: gen = st.button(f"Generate ⚡ {batch}", key="gb", type="primary", width="stretch")
 
 if st.session_state.remix_prompt: st.session_state.remix_prompt = None
 
