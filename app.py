@@ -4,7 +4,6 @@ import io
 import os
 import json
 import uuid
-import time
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
@@ -49,10 +48,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif !important;
-}
+html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 
 /* Hide Streamlit chrome */
 #MainMenu, footer, header {visibility: hidden;}
@@ -60,24 +56,26 @@ html, body, [class*="css"] {
 div[data-testid="stToolbar"] {display: none;}
 div[data-testid="stDecoration"] {display: none;}
 
+/* Push content below top bar */
 .main .block-container {
-    padding: 0.5rem 1.2rem 7rem 1.2rem !important;
+    padding: 60px 1.2rem 7rem 1.2rem !important;
     max-width: 100% !important;
 }
 
 /* ---- Top bar ---- */
 .top-bar {
-    position: sticky;
-    top: 0;
-    z-index: 999;
-    background: rgba(14,17,23,0.92);
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 99;
+    background: rgba(14,17,23,0.95);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding: 10px 20px;
+    padding: 10px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: -0.5rem -1.2rem 1rem -1.2rem;
+    height: 48px;
+    box-sizing: border-box;
 }
 .top-bar-logo {
     display: flex; align-items: center; gap: 8px;
@@ -97,7 +95,7 @@ div[data-testid="stDecoration"] {display: none;}
 }
 .top-bar-pill b { color: #C8FF00; }
 
-/* ---- Controls row pills ---- */
+/* ---- Control pills ---- */
 .ctrl-pills {
     display: flex; align-items: center; gap: 6px;
     flex-wrap: wrap; margin-top: 2px;
@@ -121,8 +119,7 @@ div[data-testid="stDecoration"] {display: none;}
 /* ---- Empty state ---- */
 .empty-state {
     text-align: center;
-    padding: 100px 20px 60px;
-    color: rgba(255,255,255,0.25);
+    padding: 80px 20px 60px;
 }
 .empty-state h2 {
     font-size: 2.2rem; font-weight: 700;
@@ -133,7 +130,7 @@ div[data-testid="stDecoration"] {display: none;}
     max-width: 400px; margin: 0 auto;
 }
 
-/* ---- Detail view info rows ---- */
+/* ---- Detail view info styling ---- */
 .info-row {
     display: flex; justify-content: space-between; padding: 9px 0;
     border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem;
@@ -146,6 +143,20 @@ div[data-testid="stDecoration"] {display: none;}
 }
 .prompt-text {
     font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.55;
+}
+
+/* ---- Reference thumbs in detail ---- */
+.ref-grid {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+}
+.ref-thumb-wrap {
+    width: 72px; height: 72px; border-radius: 8px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer; transition: border-color 0.15s;
+}
+.ref-thumb-wrap:hover { border-color: #C8FF00; }
+.ref-thumb-wrap img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
 }
 
 /* ---- Streamlit widget overrides ---- */
@@ -174,13 +185,7 @@ div[data-testid="stFileUploader"] {
     border: 1px dashed rgba(255,255,255,0.1) !important;
     border-radius: 10px !important;
 }
-.stExpander {
-    border: 1px solid rgba(255,255,255,0.06) !important;
-    border-radius: 10px !important;
-    background: rgba(255,255,255,0.02) !important;
-}
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
@@ -194,18 +199,17 @@ div[data-testid="stFileUploader"] {
 if APP_PASSWORD:
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
-
     if not st.session_state.authenticated:
         st.markdown("""
-        <div style="display: flex; justify-content: center; align-items: center;
-                    min-height: 80vh; flex-direction: column; gap: 12px;">
-            <div style="font-size: 3rem;">🍌</div>
-            <div style="font-size: 1.4rem; font-weight: 700; color: #C8FF00;">Nano Banana Studio</div>
-            <div style="color: rgba(255,255,255,0.3); font-size: 0.85rem; margin-bottom: 8px;">Enter password to continue</div>
+        <div style="display:flex;justify-content:center;align-items:center;
+                    min-height:70vh;flex-direction:column;gap:12px;">
+            <div style="font-size:3rem;">🍌</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#C8FF00;">Nano Banana Studio</div>
+            <div style="color:rgba(255,255,255,0.3);font-size:0.85rem;margin-bottom:8px;">Enter password to continue</div>
         </div>
         """, unsafe_allow_html=True)
-        col_l, col_mid, col_r = st.columns([2, 1, 2])
-        with col_mid:
+        _l, _m, _r = st.columns([2, 1, 2])
+        with _m:
             pw = st.text_input("Password", type="password", label_visibility="collapsed", placeholder="Password")
             if st.button("Enter", use_container_width=True, type="primary"):
                 if pw == APP_PASSWORD:
@@ -219,16 +223,16 @@ if APP_PASSWORD:
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
-if "images" not in st.session_state:
-    st.session_state.images = []
-if "supabase_client" not in st.session_state:
-    st.session_state.supabase_client = None
-if "loaded_from_db" not in st.session_state:
-    st.session_state.loaded_from_db = False
-if "viewing_image" not in st.session_state:
-    st.session_state.viewing_image = None
-if "ref_from_gallery" not in st.session_state:
-    st.session_state.ref_from_gallery = None
+for key, default in {
+    "images": [],
+    "supabase_client": None,
+    "loaded_from_db": False,
+    "viewing_image": None,
+    "viewing_ref": None,       # viewing a reference image from detail
+    "ref_from_gallery": None,
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +253,8 @@ def get_supabase():
         return None
 
 
-def save_to_supabase(image_b64: str, prompt: str, aspect: str, resolution: str):
+def save_to_supabase(image_b64, prompt, aspect, resolution, ref_b64_list=None):
+    """Save image + metadata + reference thumbnails to Supabase."""
     sb = get_supabase()
     if sb is None:
         return None
@@ -259,13 +264,28 @@ def save_to_supabase(image_b64: str, prompt: str, aspect: str, resolution: str):
         file_path = f"{img_id}.png"
         sb.storage.from_("generated-images").upload(file_path, img_bytes, {"content-type": "image/png"})
         public_url = sb.storage.from_("generated-images").get_public_url(file_path)
+
+        # Save reference image thumbnails to storage too
+        ref_urls = []
+        if ref_b64_list:
+            for ri, rb64 in enumerate(ref_b64_list):
+                ref_path = f"refs/{img_id}_ref{ri}.png"
+                ref_bytes = base64.b64decode(rb64) if isinstance(rb64, str) else rb64
+                sb.storage.from_("generated-images").upload(ref_path, ref_bytes, {"content-type": "image/png"})
+                ref_url = sb.storage.from_("generated-images").get_public_url(ref_path)
+                ref_urls.append(ref_url)
+
         record = {
             "id": img_id,
             "prompt": prompt,
             "aspect_ratio": aspect,
             "resolution": resolution,
             "image_url": public_url,
-            "metadata": json.dumps({"model": MODEL_NAME, "timestamp": datetime.now().isoformat()}),
+            "metadata": json.dumps({
+                "model": MODEL_NAME,
+                "timestamp": datetime.now().isoformat(),
+                "ref_urls": ref_urls,
+            }),
         }
         sb.table("generated_images").insert(record).execute()
         return img_id
@@ -285,7 +305,7 @@ def load_from_supabase():
         return []
 
 
-def delete_from_supabase(img_id: str):
+def delete_from_supabase(img_id):
     sb = get_supabase()
     if sb is None:
         return
@@ -297,11 +317,16 @@ def delete_from_supabase(img_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Load from DB on first run
+# Load from DB
 # ---------------------------------------------------------------------------
 if not st.session_state.loaded_from_db:
     db_images = load_from_supabase()
     for row in db_images:
+        meta = {}
+        try:
+            meta = json.loads(row.get("metadata", "{}"))
+        except Exception:
+            pass
         st.session_state.images.append({
             "id": row.get("id", str(uuid.uuid4())),
             "prompt": row.get("prompt", ""),
@@ -310,6 +335,8 @@ if not st.session_state.loaded_from_db:
             "url": row.get("image_url", ""),
             "b64": None,
             "created_at": row.get("created_at", ""),
+            "ref_b64s": [],               # base64 refs (only for current session)
+            "ref_urls": meta.get("ref_urls", []),  # persisted ref URLs from supabase
         })
     st.session_state.loaded_from_db = True
 
@@ -323,7 +350,6 @@ def generate_images(prompt, ref_images, aspect, resolution, batch):
     from PIL import Image as PILImage
 
     client = genai.Client(api_key=GOOGLE_API_KEY)
-
     contents = []
     for ref in ref_images:
         img = PILImage.open(io.BytesIO(ref))
@@ -331,13 +357,13 @@ def generate_images(prompt, ref_images, aspect, resolution, batch):
     contents.append(prompt)
 
     effective_aspect = None if aspect == "Auto" else aspect
-    img_config_kwargs = {"image_size": resolution}
+    img_cfg = {"image_size": resolution}
     if effective_aspect:
-        img_config_kwargs["aspect_ratio"] = effective_aspect
+        img_cfg["aspect_ratio"] = effective_aspect
 
     config = types.GenerateContentConfig(
         response_modalities=["TEXT", "IMAGE"],
-        image_config=types.ImageConfig(**img_config_kwargs),
+        image_config=types.ImageConfig(**img_cfg),
     )
 
     results = []
@@ -348,22 +374,31 @@ def generate_images(prompt, ref_images, aspect, resolution, batch):
             )
             for part in response.candidates[0].content.parts:
                 if part.inline_data is not None:
-                    img_b64 = base64.b64encode(part.inline_data.data).decode("utf-8")
-                    results.append(img_b64)
+                    results.append(base64.b64encode(part.inline_data.data).decode("utf-8"))
         except Exception as e:
-            st.toast(f"⚠️ Generation {i+1} failed: {e}", icon="⚠️")
+            st.toast(f"⚠️ Generation {i+1}: {e}", icon="⚠️")
     return results
 
 
 # ---------------------------------------------------------------------------
-# Helper
+# Helpers
 # ---------------------------------------------------------------------------
 def get_img_src(img):
     if img.get("b64"):
         return f"data:image/png;base64,{img['b64']}"
-    elif img.get("url"):
+    if img.get("url"):
         return img["url"]
     return None
+
+
+def get_ref_sources(img):
+    """Get all reference image sources (b64 or url) for an image."""
+    sources = []
+    for rb in img.get("ref_b64s", []):
+        sources.append(f"data:image/png;base64,{rb}")
+    for ru in img.get("ref_urls", []):
+        sources.append(ru)
+    return sources
 
 
 # ---------------------------------------------------------------------------
@@ -381,9 +416,22 @@ st.markdown(f"""
 
 
 # ---------------------------------------------------------------------------
-# DETAIL VIEW (when an image is clicked)
+# VIEWING A REFERENCE IMAGE (sub-detail)
 # ---------------------------------------------------------------------------
-if st.session_state.viewing_image is not None:
+if st.session_state.viewing_ref is not None:
+    st.markdown("#### 🖼 Reference Image")
+    ref_src = st.session_state.viewing_ref
+    st.image(ref_src, use_container_width=False, width=600)
+    if st.button("← Back to image details", key="back_from_ref"):
+        st.session_state.viewing_ref = None
+        st.rerun()
+    st.markdown("---")
+
+
+# ---------------------------------------------------------------------------
+# DETAIL VIEW
+# ---------------------------------------------------------------------------
+elif st.session_state.viewing_image is not None:
     idx = st.session_state.viewing_image
     if idx < len(st.session_state.images):
         img = st.session_state.images[idx]
@@ -396,26 +444,47 @@ if st.session_state.viewing_image is not None:
                 st.image(src, use_container_width=True)
 
             with col_info:
-                # Close button
+                # Close
                 if st.button("✕  Close", key="close_detail", use_container_width=True):
                     st.session_state.viewing_image = None
                     st.rerun()
 
-                # Prompt
-                st.markdown(f'<div class="section-title">✦ PROMPT</div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="prompt-text">{img.get("prompt", "No prompt")}</div>',
-                            unsafe_allow_html=True)
+                st.markdown("")
+
+                # ---- PROMPT ----
+                st.markdown('<div class="section-title">✦ PROMPT</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="prompt-text">{img.get("prompt", "No prompt")}</div>',
+                    unsafe_allow_html=True,
+                )
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # Info
-                st.markdown(f'<div class="section-title">ⓘ INFORMATION</div>', unsafe_allow_html=True)
+                # ---- INFORMATION ----
+                st.markdown('<div class="section-title">ⓘ INFORMATION</div>', unsafe_allow_html=True)
+                created = str(img.get("created_at", ""))[:16].replace("T", " ")
                 st.markdown(f"""
                 <div class="info-row"><span class="info-label">Model</span><span class="info-value">Nano Banana Pro</span></div>
                 <div class="info-row"><span class="info-label">Quality</span><span class="info-value">{img.get('resolution', '2K')}</span></div>
                 <div class="info-row"><span class="info-label">Aspect Ratio</span><span class="info-value">{img.get('aspect_ratio', 'Auto')}</span></div>
-                <div class="info-row"><span class="info-label">Created</span><span class="info-value">{str(img.get('created_at', ''))[:16]}</span></div>
+                <div class="info-row"><span class="info-label">Created</span><span class="info-value">{created}</span></div>
                 """, unsafe_allow_html=True)
                 st.markdown("<br>", unsafe_allow_html=True)
+
+                # ---- REFERENCE IMAGES USED ----
+                ref_sources = get_ref_sources(img)
+                if ref_sources:
+                    st.markdown('<div class="section-title">🖼 REFERENCE IMAGES USED</div>', unsafe_allow_html=True)
+                    ref_cols = st.columns(min(len(ref_sources), 4), gap="small")
+                    for ri, rsrc in enumerate(ref_sources):
+                        with ref_cols[ri % len(ref_cols)]:
+                            st.image(rsrc, width=80)
+                            if st.button("Open", key=f"openref_{ri}", use_container_width=True):
+                                st.session_state.viewing_ref = rsrc
+                                st.rerun()
+                    st.markdown("<br>", unsafe_allow_html=True)
+
+                # ---- ACTIONS ----
+                st.markdown('<div class="section-title">⚡ ACTIONS</div>', unsafe_allow_html=True)
 
                 # Download
                 if img.get("b64"):
@@ -425,14 +494,10 @@ if st.session_state.viewing_image is not None:
                         file_name=f"nanoBanana_{img.get('id', 'image')[:8]}.png",
                         mime="image/png",
                         use_container_width=True,
-                        key="detail_download",
+                        key="detail_dl",
                     )
                 elif img.get("url"):
-                    st.markdown(f'<a href="{img["url"]}" download target="_blank" '
-                                f'style="display:block;text-align:center;padding:10px;border-radius:10px;'
-                                f'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);'
-                                f'color:rgba(255,255,255,0.8);text-decoration:none;font-size:0.82rem;'
-                                f'font-weight:500;">⬇  Download</a>', unsafe_allow_html=True)
+                    st.link_button("⬇  Download", img["url"], use_container_width=True)
 
                 # Use as reference
                 if st.button("🖼  Use as Reference", use_container_width=True, key="detail_ref"):
@@ -477,29 +542,27 @@ else:
                 src = get_img_src(img)
                 if not src:
                     continue
-
                 actual_idx = st.session_state.images.index(img)
 
-                # Image
                 st.image(src, use_container_width=True)
 
-                # Action buttons row
-                btn_cols = st.columns([1, 1, 1], gap="small")
-                with btn_cols[0]:
+                # Action buttons
+                b1, b2, b3 = st.columns([1, 1, 1], gap="small")
+                with b1:
                     if st.button("👁 View", key=f"v_{actual_idx}", use_container_width=True):
                         st.session_state.viewing_image = actual_idx
                         st.rerun()
-                with btn_cols[1]:
+                with b2:
                     if img.get("b64"):
                         st.download_button(
                             "⬇ Save", data=base64.b64decode(img["b64"]),
-                            file_name=f"nb_{img.get('id', 'img')[:8]}.png",
+                            file_name=f"nb_{img.get('id','img')[:8]}.png",
                             mime="image/png", key=f"d_{actual_idx}",
                             use_container_width=True,
                         )
                     elif img.get("url"):
                         st.link_button("⬇ Save", img["url"], use_container_width=True)
-                with btn_cols[2]:
+                with b3:
                     if st.button("🗑", key=f"x_{actual_idx}", use_container_width=True):
                         if img.get("id"):
                             delete_from_supabase(img["id"])
@@ -509,17 +572,19 @@ else:
                         st.toast("Deleted", icon="🗑️")
                         st.rerun()
 
-                # Caption
+                # Prompt caption + ref count
                 prompt_short = img.get("prompt", "")[:50]
                 if len(img.get("prompt", "")) > 50:
                     prompt_short += "…"
-                st.caption(prompt_short)
+                ref_count = len(get_ref_sources(img))
+                ref_tag = f" · 📎{ref_count}" if ref_count > 0 else ""
+                st.caption(f"{prompt_short}{ref_tag}")
 
 
 # ---------------------------------------------------------------------------
-# BOTTOM — Reference + Prompt + Controls
+# BOTTOM — Reference upload + Prompt + Controls
 # ---------------------------------------------------------------------------
-st.markdown('<div style="height: 12px"></div>', unsafe_allow_html=True)
+st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
 
 with st.expander("📎 Reference Images (optional — up to 14)", expanded=False):
     uploaded_refs = st.file_uploader(
@@ -540,7 +605,7 @@ with st.expander("📎 Reference Images (optional — up to 14)", expanded=False
         for i, ref in enumerate(uploaded_refs[:14]):
             rcols[i % len(rcols)].image(ref, width=80)
         if len(uploaded_refs) > 14:
-            st.warning("Max 14 references. Only the first 14 will be used.")
+            st.warning("Max 14. Only first 14 used.")
 
 # Prompt row
 p1, p2, p3, p4, p5 = st.columns([6, 1, 1, 1, 1])
@@ -562,17 +627,17 @@ with p5:
                                  type="primary", use_container_width=True)
 
 # Pills
-pills_parts = [
+pp = [
     '<span class="ctrl-pill"><span class="ctrl-dot"></span> <b>Nano Banana Pro</b></span>',
     f'<span class="ctrl-pill">📐 <b>{aspect_ratio}</b></span>',
     f'<span class="ctrl-pill">🖥️ <b>{resolution}</b></span>',
     f'<span class="ctrl-pill">🔢 <b>{batch_size}/{MAX_BATCH}</b></span>',
 ]
 if uploaded_refs:
-    pills_parts.append(f'<span class="ctrl-pill">📎 <b>{min(len(uploaded_refs), 14)} refs</b></span>')
+    pp.append(f'<span class="ctrl-pill">📎 <b>{min(len(uploaded_refs), 14)} refs</b></span>')
 if st.session_state.ref_from_gallery:
-    pills_parts.append('<span class="ctrl-pill">🖼 <b>1 gallery ref</b></span>')
-st.markdown(f'<div class="ctrl-pills">{"".join(pills_parts)}</div>', unsafe_allow_html=True)
+    pp.append('<span class="ctrl-pill">🖼 <b>1 gallery ref</b></span>')
+st.markdown(f'<div class="ctrl-pills">{"".join(pp)}</div>', unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -584,28 +649,39 @@ if generate_clicked:
     elif not GOOGLE_API_KEY:
         st.toast("Google API key not configured!", icon="🔑")
     else:
+        # Collect reference bytes
         ref_bytes = []
+        ref_b64_for_storage = []  # base64 versions to store with the image record
+
         if uploaded_refs:
             for ref in uploaded_refs[:14]:
-                ref_bytes.append(ref.read())
+                raw = ref.read()
+                ref_bytes.append(raw)
+                ref_b64_for_storage.append(base64.b64encode(raw).decode("utf-8"))
+
         if st.session_state.ref_from_gallery:
             gal = st.session_state.ref_from_gallery
             if gal.get("b64"):
-                ref_bytes.append(base64.b64decode(gal["b64"]))
+                raw = base64.b64decode(gal["b64"])
+                ref_bytes.append(raw)
+                ref_b64_for_storage.append(gal["b64"])
 
         with st.spinner(f"🍌 Generating {batch_size} image{'s' if batch_size > 1 else ''}..."):
             results = generate_images(prompt_text, ref_bytes, aspect_ratio, resolution, batch_size)
 
         if results:
             for b64 in results:
-                img_id = save_to_supabase(b64, prompt_text, aspect_ratio, resolution)
+                img_id = save_to_supabase(b64, prompt_text, aspect_ratio, resolution, ref_b64_for_storage)
                 st.session_state.images.insert(0, {
                     "id": img_id or str(uuid.uuid4()),
                     "prompt": prompt_text,
                     "aspect_ratio": aspect_ratio,
                     "resolution": resolution,
-                    "url": None, "b64": b64,
+                    "url": None,
+                    "b64": b64,
                     "created_at": datetime.now().isoformat(),
+                    "ref_b64s": ref_b64_for_storage,
+                    "ref_urls": [],
                 })
             st.toast(f"✅ {len(results)} image{'s' if len(results) > 1 else ''} generated!", icon="🍌")
             st.rerun()
