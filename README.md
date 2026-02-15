@@ -44,9 +44,9 @@ pip install -r requirements.txt
 Edit the `.env` file:
 
 ```env
-GOOGLE_API_KEY=AIzaSyCRU57UxEf4axOA9IGoyWKXi5vb_lnUlA4
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIs...
+GOOGLE_API_KEY=
+SUPABASE_URL=
+SUPABASE_KEY=
 ```
 
 ### 4. Run
