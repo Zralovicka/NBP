@@ -706,16 +706,18 @@ with paste_component:
 # Hidden text area to receive pasted image data from JS
 pasted_data = st.text_area(
     "pasted_data", key="pasted_data_input", label_visibility="collapsed",
-    height=0, placeholder="",
+    height=1, placeholder="",
 )
 
-# Hide the text area visually
+# Hide the text area visually via CSS
 st.markdown("""
 <style>
-div[data-testid="stTextArea"]:has(textarea#pasted-data-input),
-div:has(> div > textarea[aria-label="pasted_data"]) {
-    position: absolute !important;
-    height: 0 !important;
+[data-testid="stTextArea"]:has(textarea[aria-label="pasted_data"]) {
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    height: 1px !important;
+    width: 1px !important;
     overflow: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
