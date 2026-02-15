@@ -5,6 +5,8 @@ import os
 import json
 import uuid
 import hashlib
+import threading
+import time
 import requests as http_requests
 from datetime import datetime
 from pathlib import Path
@@ -49,10 +51,8 @@ div[data-testid="stStatusWidget"], div[data-testid="stHeader"] { display: none !
 
 .main .block-container { padding: 56px 24px 140px 24px !important; max-width: 100% !important; }
 
-/* NAV */
 .nav-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-    height: 50px; background: #111;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999; height: 50px; background: #111;
     display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
 }
 .nav-logo { font-size: 0.95rem; font-weight: 700; color: #C8FF00; display: flex; align-items: center; gap: 8px; }
@@ -64,7 +64,7 @@ div[data-testid="stStatusWidget"], div[data-testid="stHeader"] { display: none !
 }
 .nav-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: #C8FF00; }
 
-/* PLACEHOLDER CARD */
+/* PLACEHOLDER */
 .gen-card {
     background: #18181b; border: 1px solid #2a2a2e; border-radius: 12px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -79,49 +79,30 @@ div[data-testid="stStatusWidget"], div[data-testid="stHeader"] { display: none !
 }
 @keyframes spin { to{transform:rotate(360deg)} }
 .gen-card .gen-text { font-size: 0.72rem; color: #555; font-weight: 500; }
+.gen-card .gen-prompt { font-size: 0.65rem; color: #444; max-width: 200px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* EMPTY */
 .empty-hero { text-align: center; padding: 80px 20px 60px; }
 .empty-hero .emoji { font-size: 3.5rem; margin-bottom: 12px; }
 .empty-hero h1 { font-size: 1.6rem; font-weight: 800; color: #ccc; margin: 0 0 8px 0; }
 .empty-hero p { font-size: 0.88rem; color: #aaa; max-width: 380px; margin: 0 auto; line-height: 1.5; }
 
-/* DETAIL */
 .detail-label { font-size: 0.65rem; color: #999; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin: 18px 0 8px 0; }
 .detail-prompt-box { background: #f7f7f8; border: 1px solid #e8e8ea; border-radius: 10px; padding: 14px 16px; font-size: 0.86rem; color: #333; line-height: 1.6; }
 .detail-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f0f0f2; font-size: 0.82rem; }
 .detail-row-k { color: #999; }
 .detail-row-v { color: #333; font-weight: 600; }
 
-/* PILLS */
 .bottom-pills { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .bpill { background: #f3f3f5; border: 1px solid #e5e5e8; border-radius: 100px; padding: 4px 13px; font-size: 0.68rem; color: #888; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
 .bpill b { color: #444; }
 .bpill .dot { width: 5px; height: 5px; border-radius: 50%; background: #a0c800; }
 
-/* PRIMARY BTN */
 .stButton > button[data-testid="stBaseButton-primary"] {
     background: #111 !important; border: none !important; color: #C8FF00 !important;
     font-weight: 700 !important; border-radius: 10px !important;
     font-family: 'Inter', sans-serif !important; font-size: 0.85rem !important; padding: 8px 20px !important;
 }
 .stButton > button[data-testid="stBaseButton-primary"]:hover { background: #222 !important; }
-
-/* REF THUMBS */
-.ref-grid {
-    display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start;
-    padding: 8px 0;
-}
-.ref-thumb-wrap {
-    position: relative; width: 80px;
-}
-.ref-thumb-wrap img {
-    width: 80px; height: 80px; object-fit: cover; border-radius: 8px;
-    border: 1px solid #e0e0e2;
-}
-.ref-source-tag {
-    font-size: 0.6rem; color: #888; text-align: center; margin-top: 2px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -166,10 +147,61 @@ defaults = {
     "images": [], "supabase_client": None, "loaded_from_db": False,
     "viewing_image": None, "viewing_ref": None, "ref_from_gallery": None,
     "remix_prompt": None, "remix_refs": None,
+    "pending_jobs": [],       # list of {id, prompt, batch, status, results, ...}
+    "completed_jobs": [],     # jobs that finished and need to be processed
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# Thread-safe job storage (survives across reruns within same session)
+if "job_store" not in st.session_state:
+    st.session_state.job_store = {}  # job_id -> {status, results, prompt, ...}
+
+
+# ---------------------------------------------------------------------------
+# Background generation thread
+# ---------------------------------------------------------------------------
+def run_generation_thread(job_id, prompt, ref_bytes_b64, aspect, resolution, batch, api_key):
+    """Run image generation in a background thread. Updates job_store directly."""
+    store = st.session_state.job_store
+    store[job_id]["status"] = "running"
+
+    from google import genai
+    from google.genai import types
+    from PIL import Image as PILImage
+
+    client = genai.Client(api_key=api_key)
+
+    ref_images = []
+    for rb64 in ref_bytes_b64:
+        try:
+            ref_images.append(PILImage.open(io.BytesIO(base64.b64decode(rb64))))
+        except:
+            pass
+
+    contents = ref_images + [prompt]
+    a = None if aspect == "Auto" else aspect
+    cfg = {"image_size": resolution}
+    if a: cfg["aspect_ratio"] = a
+    config = types.GenerateContentConfig(
+        response_modalities=["TEXT", "IMAGE"], image_config=types.ImageConfig(**cfg))
+
+    results = []
+    errors = []
+    for i in range(batch):
+        try:
+            resp = client.models.generate_content(model=MODEL_NAME, contents=contents, config=config)
+            for part in resp.candidates[0].content.parts:
+                if part.inline_data:
+                    results.append(base64.b64encode(part.inline_data.data).decode("utf-8"))
+            store[job_id]["completed_count"] = len(results)
+        except Exception as e:
+            errors.append(f"Gen {i+1}: {e}")
+
+    store[job_id]["results"] = results
+    store[job_id]["errors"] = errors
+    store[job_id]["status"] = "done"
 
 
 # ---------------------------------------------------------------------------
@@ -238,32 +270,6 @@ if not st.session_state.loaded_from_db:
 
 
 # ---------------------------------------------------------------------------
-# Generation
-# ---------------------------------------------------------------------------
-def generate_images(prompt, ref_images, aspect, resolution, batch):
-    from google import genai
-    from google.genai import types
-    from PIL import Image as PILImage
-    client = genai.Client(api_key=GOOGLE_API_KEY)
-    contents = [PILImage.open(io.BytesIO(r)) for r in ref_images] + [prompt]
-    a = None if aspect == "Auto" else aspect
-    cfg = {"image_size": resolution}
-    if a: cfg["aspect_ratio"] = a
-    config = types.GenerateContentConfig(
-        response_modalities=["TEXT", "IMAGE"], image_config=types.ImageConfig(**cfg))
-    results = []
-    for i in range(batch):
-        try:
-            resp = client.models.generate_content(model=MODEL_NAME, contents=contents, config=config)
-            for part in resp.candidates[0].content.parts:
-                if part.inline_data:
-                    results.append(base64.b64encode(part.inline_data.data).decode("utf-8"))
-        except Exception as e:
-            st.toast(f"⚠️ Gen {i+1}: {e}", icon="⚠️")
-    return results
-
-
-# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 def img_src(img):
@@ -292,15 +298,73 @@ def get_download_bytes(img):
 
 
 # ---------------------------------------------------------------------------
+# Process completed jobs FIRST (before rendering)
+# ---------------------------------------------------------------------------
+jobs_to_remove = []
+for job_id, job in st.session_state.job_store.items():
+    if job["status"] == "done" and not job.get("processed"):
+        job["processed"] = True
+        jobs_to_remove.append(job_id)
+        results = job.get("results", [])
+        errors = job.get("errors", [])
+
+        if results:
+            for b64 in results:
+                iid = save_to_supabase(b64, job["prompt"], job["aspect"], job["resolution"], job["ref_b64s"])
+                st.session_state.images.insert(0, {
+                    "id": iid or str(uuid.uuid4()), "prompt": job["prompt"],
+                    "aspect_ratio": job["aspect"], "resolution": job["resolution"],
+                    "url": None, "b64": b64, "created_at": datetime.now().isoformat(),
+                    "ref_b64s": job["ref_b64s"], "ref_urls": [],
+                })
+            st.toast(f"✅ {len(results)} image{'s' if len(results)>1 else ''} done!", icon="🍌")
+
+        for err in errors:
+            st.toast(f"⚠️ {err}", icon="⚠️")
+
+# Clean up processed jobs
+for jid in jobs_to_remove:
+    del st.session_state.job_store[jid]
+
+# Count active (running) jobs
+active_jobs = {jid: j for jid, j in st.session_state.job_store.items() if j["status"] == "running"}
+has_active_jobs = len(active_jobs) > 0
+
+
+# ---------------------------------------------------------------------------
+# Auto-refresh while jobs are running (poll every 2 seconds)
+# ---------------------------------------------------------------------------
+if has_active_jobs:
+    import streamlit.components.v1 as components
+    components.html("""
+    <script>
+        setTimeout(function() {
+            window.parent.document.querySelectorAll('button').forEach(function(btn) {
+                // Trigger a Streamlit rerun by simulating activity
+            });
+            // Use Streamlit's built-in rerun mechanism
+            window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+        }, 2500);
+    </script>
+    <script>
+        // Fallback: reload if postMessage doesn't work
+        setTimeout(function() { window.parent.location.reload(); }, 3000);
+    </script>
+    """, height=0)
+
+
+# ---------------------------------------------------------------------------
 # NAV
 # ---------------------------------------------------------------------------
 n = len(st.session_state.images)
+active_count = len(active_jobs)
+nav_extra = f' · <span style="color:#C8FF00">{active_count} generating</span>' if active_count > 0 else ""
 st.markdown(f"""
 <div class="nav-bar">
     <div class="nav-logo">🍌 Nano Banana Studio</div>
     <div class="nav-right">
         <div class="nav-chip"><span class="dot"></span> Nano Banana Pro</div>
-        <div class="nav-chip">{n} image{"s" if n != 1 else ""}</div>
+        <div class="nav-chip">{n} image{"s" if n != 1 else ""}{nav_extra}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -370,22 +434,41 @@ elif st.session_state.viewing_image is not None:
 
 
 # ---------------------------------------------------------------------------
-# GALLERY — with placeholder slots at top for generation
+# GALLERY
 # ---------------------------------------------------------------------------
-
-# Reserve placeholder containers BEFORE the gallery renders
-# These st.empty() slots will be filled with placeholder cards during generation
-placeholder_slots = []
 C = 4
 
-# Create a row of empty containers at the very top of the gallery area
-placeholder_row = st.columns(C, gap="small")
-placeholder_empties = []
-for i in range(C):
-    with placeholder_row[i]:
-        placeholder_empties.append(st.empty())
+# Show active job placeholders at top of gallery
+if active_jobs:
+    total_pending = sum(j["batch"] for j in active_jobs.values())
+    ph_count = min(total_pending, C * 2)  # max 2 rows of placeholders
+    for row_start in range(0, ph_count, C):
+        row_end = min(row_start + C, ph_count)
+        ph_cols = st.columns(C, gap="small")
+        job_list = list(active_jobs.values())
+        for i in range(row_start, row_end):
+            with ph_cols[i - row_start]:
+                # Find which job this placeholder belongs to
+                job_idx = 0
+                count = 0
+                for ji, j in enumerate(job_list):
+                    count += j["batch"]
+                    if i < count:
+                        job_idx = ji
+                        break
+                j = job_list[min(job_idx, len(job_list)-1)]
+                prompt_short = j["prompt"][:35]
+                if len(j["prompt"]) > 35: prompt_short += "…"
+                completed = j.get("completed_count", 0)
+                st.markdown(f'''
+                <div class="gen-card">
+                    <div class="spinner"></div>
+                    <div class="gen-text">Generating… ({completed}/{j["batch"]})</div>
+                    <div class="gen-prompt">{prompt_short}</div>
+                </div>
+                ''', unsafe_allow_html=True)
 
-if not st.session_state.images:
+if not st.session_state.images and not active_jobs:
     st.markdown("""
     <div class="empty-hero">
         <div class="emoji">🍌</div>
@@ -393,7 +476,7 @@ if not st.session_state.images:
         <p>Type a prompt below to start generating.<br>Upload references for context-aware creation.</p>
     </div>
     """, unsafe_allow_html=True)
-else:
+elif st.session_state.images:
     for row in [st.session_state.images[i:i+C] for i in range(0, len(st.session_state.images), C)]:
         cols = st.columns(C, gap="small")
         for ci, img in enumerate(row):
@@ -431,49 +514,36 @@ else:
 
 
 # ---------------------------------------------------------------------------
-# REFERENCE IMAGES — unified view
+# REFERENCES
 # ---------------------------------------------------------------------------
 st.markdown("")
-
-# Collect all reference sources for display
-all_ref_items = []  # list of (source_label, display_src)
-
+all_ref_items = []
 if st.session_state.ref_from_gallery:
     s = img_src(st.session_state.ref_from_gallery)
     if s: all_ref_items.append(("Gallery", s))
-
 if st.session_state.remix_refs:
     for r in st.session_state.remix_refs:
         all_ref_items.append(("Remix", ref_display(r)))
+has_refs = len(all_ref_items) > 0
 
-has_extra_refs = len(all_ref_items) > 0
-
-with st.expander(f"📎 Reference Images — {len(all_ref_items)} loaded" if has_extra_refs else "📎 Reference Images (optional — up to 14)", expanded=has_extra_refs):
-    uploaded_refs = st.file_uploader("Upload reference images", type=["png","jpg","jpeg","webp"],
+with st.expander(f"📎 References — {len(all_ref_items)} loaded" if has_refs else "📎 Reference Images (optional)", expanded=has_refs):
+    uploaded_refs = st.file_uploader("Upload", type=["png","jpg","jpeg","webp"],
         accept_multiple_files=True, key="rup", label_visibility="collapsed")
 
-    # Show all refs in one unified thumbnail grid
     if all_ref_items or uploaded_refs:
         st.markdown("**All references that will be sent:**")
-
-        # Build a combined list for display
         display_items = list(all_ref_items)
         if uploaded_refs:
-            for f in uploaded_refs[:14]:
-                display_items.append(("Upload", f))
-
-        # Show as a grid
+            for f in uploaded_refs[:14]: display_items.append(("Upload", f))
         grid_cols = st.columns(min(len(display_items), 7), gap="small")
         for i, (label, src) in enumerate(display_items):
             with grid_cols[i % len(grid_cols)]:
                 st.image(src, width=80, use_container_width=False)
                 st.caption(label)
-
         if len(display_items) > 14:
-            st.warning("Max 14 references. Only first 14 will be used.")
+            st.warning("Max 14. Only first 14 used.")
 
-        # Clear buttons
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns(2)
         with c1:
             if st.session_state.ref_from_gallery:
                 if st.button("✕ Clear gallery ref", key="rmg", use_container_width=True):
@@ -485,7 +555,7 @@ with st.expander(f"📎 Reference Images — {len(all_ref_items)} loaded" if has
 
 
 # ---------------------------------------------------------------------------
-# PROMPT ROW
+# PROMPT
 # ---------------------------------------------------------------------------
 dp = st.session_state.remix_prompt or ""
 p1, p2, p3, p4, p5 = st.columns([6, 1, 1, 1, 1])
@@ -504,61 +574,63 @@ tr = len(uploaded_refs or [])
 if st.session_state.ref_from_gallery: tr += 1
 if st.session_state.remix_refs: tr += len(st.session_state.remix_refs)
 if tr: pp.append(f'<span class="bpill">📎 <b>{min(tr,14)} refs</b></span>')
+if active_count: pp.append(f'<span class="bpill" style="border-color:#a0c800;"><b style="color:#6a8a00;">⏳ {active_count} job{"s" if active_count>1 else ""} running</b></span>')
 st.markdown(f'<div class="bottom-pills">{"".join(pp)}</div>', unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
-# GENERATE — uses placeholder_empties for live feedback
+# GENERATE — spawns background thread
 # ---------------------------------------------------------------------------
 if gen:
-    if not prompt.strip(): st.toast("Enter a prompt!", icon="✏️")
-    elif not GOOGLE_API_KEY: st.toast("API key not set!", icon="🔑")
+    if not prompt.strip():
+        st.toast("Enter a prompt!", icon="✏️")
+    elif not GOOGLE_API_KEY:
+        st.toast("API key not set!", icon="🔑")
     else:
-        rb, r64 = [], []
+        # Collect reference bytes as b64 strings (serializable for thread)
+        r64 = []
         if uploaded_refs:
             for r in uploaded_refs[:14]:
-                raw = r.read(); rb.append(raw); r64.append(base64.b64encode(raw).decode("utf-8"))
+                raw = r.read()
+                r64.append(base64.b64encode(raw).decode("utf-8"))
         if st.session_state.ref_from_gallery:
             g = st.session_state.ref_from_gallery
             if g.get("b64"):
-                rb.append(base64.b64decode(g["b64"])); r64.append(g["b64"])
+                r64.append(g["b64"])
             elif g.get("url"):
                 d = fetch_image_bytes(g["url"])
-                if d: rb.append(d); r64.append(base64.b64encode(d).decode("utf-8"))
+                if d: r64.append(base64.b64encode(d).decode("utf-8"))
         if st.session_state.remix_refs:
             for kind, val in st.session_state.remix_refs:
                 if kind == "b64":
-                    rb.append(base64.b64decode(val)); r64.append(val)
+                    r64.append(val)
                 elif kind == "url":
                     d = fetch_image_bytes(val)
-                    if d: rb.append(d); r64.append(base64.b64encode(d).decode("utf-8"))
-        rb, r64 = rb[:14], r64[:14]
+                    if d: r64.append(base64.b64encode(d).decode("utf-8"))
+        r64 = r64[:14]
 
-        # Show dark placeholder cards in the reserved slots
-        for i in range(min(batch, C)):
-            placeholder_empties[i].markdown(
-                '<div class="gen-card"><div class="spinner"></div>'
-                f'<div class="gen-text">Generating {i+1}/{batch}…</div></div>',
-                unsafe_allow_html=True,
-            )
+        # Create job
+        job_id = str(uuid.uuid4())[:8]
+        st.session_state.job_store[job_id] = {
+            "status": "starting",
+            "prompt": prompt,
+            "aspect": ar,
+            "resolution": res,
+            "batch": batch,
+            "ref_b64s": r64,
+            "results": [],
+            "errors": [],
+            "completed_count": 0,
+            "processed": False,
+        }
 
-        # Run generation
-        results = generate_images(prompt, rb, ar, res, batch)
+        # Spawn background thread
+        t = threading.Thread(
+            target=run_generation_thread,
+            args=(job_id, prompt, r64, ar, res, batch, GOOGLE_API_KEY),
+            daemon=True,
+        )
+        t.start()
 
-        # Clear placeholders
-        for i in range(C):
-            placeholder_empties[i].empty()
-
-        if results:
-            for b64 in results:
-                iid = save_to_supabase(b64, prompt, ar, res, r64)
-                st.session_state.images.insert(0, {
-                    "id": iid or str(uuid.uuid4()), "prompt": prompt,
-                    "aspect_ratio": ar, "resolution": res,
-                    "url": None, "b64": b64, "created_at": datetime.now().isoformat(),
-                    "ref_b64s": r64, "ref_urls": [],
-                })
-            st.session_state.remix_refs = None
-            st.toast(f"✅ {len(results)} image{'s' if len(results)>1 else ''} done!", icon="🍌"); st.rerun()
-        else:
-            st.toast("Failed — check API key", icon="❌")
+        st.toast(f"🍌 Generation started! ({batch} image{'s' if batch>1 else ''})", icon="🚀")
+        st.rerun()  # Rerun immediately to show placeholders
