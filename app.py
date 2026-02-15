@@ -43,7 +43,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# CSS
+# CSS — works in both light and dark Streamlit themes
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -56,7 +56,7 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
 div[data-testid="stToolbar"] {display: none;}
 div[data-testid="stDecoration"] {display: none;}
 
-/* Push content below top bar */
+/* Push content below fixed top bar */
 .main .block-container {
     padding: 60px 1.2rem 7rem 1.2rem !important;
     max-width: 100% !important;
@@ -67,9 +67,8 @@ div[data-testid="stDecoration"] {display: none;}
     position: fixed;
     top: 0; left: 0; right: 0;
     z-index: 99;
-    background: rgba(14,17,23,0.95);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: #1a1a2e;
+    border-bottom: 1px solid #2a2a3e;
     padding: 10px 24px;
     display: flex;
     align-items: center;
@@ -85,32 +84,31 @@ div[data-testid="stDecoration"] {display: none;}
     display: flex; align-items: center; gap: 12px;
 }
 .top-bar-pill {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: 20px;
     padding: 5px 14px;
     font-size: 0.75rem;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255,255,255,0.7);
     font-weight: 500;
 }
-.top-bar-pill b { color: #C8FF00; }
 
-/* ---- Control pills ---- */
+/* ---- Control pills (bottom) ---- */
 .ctrl-pills {
     display: flex; align-items: center; gap: 6px;
-    flex-wrap: wrap; margin-top: 2px;
+    flex-wrap: wrap; margin-top: 4px;
 }
 .ctrl-pill {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: #262630;
+    border: 1px solid #363645;
     border-radius: 20px;
     padding: 4px 13px;
     font-size: 0.72rem;
-    color: rgba(255,255,255,0.45);
+    color: #999;
     font-weight: 500;
     display: inline-flex; align-items: center; gap: 5px;
 }
-.ctrl-pill b { color: rgba(255,255,255,0.8); }
+.ctrl-pill b { color: #ddd; }
 .ctrl-dot {
     width: 6px; height: 6px; border-radius: 50%;
     background: #C8FF00; display: inline-block;
@@ -123,72 +121,53 @@ div[data-testid="stDecoration"] {display: none;}
 }
 .empty-state h2 {
     font-size: 2.2rem; font-weight: 700;
-    color: rgba(255,255,255,0.15); margin-bottom: 6px;
+    color: #555; margin-bottom: 6px;
 }
 .empty-state p {
-    font-size: 0.9rem; color: rgba(255,255,255,0.25);
+    font-size: 0.9rem; color: #777;
     max-width: 400px; margin: 0 auto;
 }
 
-/* ---- Detail view info styling ---- */
-.info-row {
-    display: flex; justify-content: space-between; padding: 9px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem;
+/* ---- Detail view info ---- */
+.detail-section-title {
+    font-size: 0.72rem;
+    color: #888;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    margin-top: 16px;
 }
-.info-label { color: rgba(255,255,255,0.4); }
-.info-value { color: rgba(255,255,255,0.85); font-weight: 500; }
-.section-title {
-    font-size: 0.7rem; color: rgba(255,255,255,0.35); font-weight: 600;
-    letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px;
+.detail-prompt {
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 10px 14px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    color: #333;
 }
-.prompt-text {
-    font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.55;
+.detail-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.84rem;
 }
+.detail-info-label { color: #888; }
+.detail-info-value { color: #333; font-weight: 600; }
 
-/* ---- Reference thumbs in detail ---- */
-.ref-grid {
-    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+/* Dark theme overrides for detail */
+@media (prefers-color-scheme: dark) {
+    .detail-prompt {
+        background: #1e1e2e;
+        border-color: #2e2e3e;
+        color: #ddd;
+    }
+    .detail-info-row { border-bottom-color: #2a2a3a; }
+    .detail-info-label { color: #888; }
+    .detail-info-value { color: #ddd; }
 }
-.ref-thumb-wrap {
-    width: 72px; height: 72px; border-radius: 8px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer; transition: border-color 0.15s;
-}
-.ref-thumb-wrap:hover { border-color: #C8FF00; }
-.ref-thumb-wrap img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-}
-
-/* ---- Streamlit widget overrides ---- */
-.stTextInput > div > div > input {
-    background: rgba(255,255,255,0.04) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 10px !important;
-    color: rgba(255,255,255,0.9) !important;
-    font-size: 0.88rem !important;
-    padding: 10px 14px !important;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #C8FF00 !important;
-    box-shadow: 0 0 0 1px rgba(200,255,0,0.2) !important;
-}
-.stTextInput > div > div > input::placeholder {
-    color: rgba(255,255,255,0.25) !important;
-}
-.stSelectbox > div > div {
-    background: rgba(255,255,255,0.04) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 8px !important;
-}
-div[data-testid="stFileUploader"] {
-    background: rgba(255,255,255,0.02) !important;
-    border: 1px dashed rgba(255,255,255,0.1) !important;
-    border-radius: 10px !important;
-}
-
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -205,7 +184,7 @@ if APP_PASSWORD:
                     min-height:70vh;flex-direction:column;gap:12px;">
             <div style="font-size:3rem;">🍌</div>
             <div style="font-size:1.4rem;font-weight:700;color:#C8FF00;">Nano Banana Studio</div>
-            <div style="color:rgba(255,255,255,0.3);font-size:0.85rem;margin-bottom:8px;">Enter password to continue</div>
+            <div style="color:#888;font-size:0.85rem;margin-bottom:8px;">Enter password to continue</div>
         </div>
         """, unsafe_allow_html=True)
         _l, _m, _r = st.columns([2, 1, 2])
@@ -228,7 +207,7 @@ for key, default in {
     "supabase_client": None,
     "loaded_from_db": False,
     "viewing_image": None,
-    "viewing_ref": None,       # viewing a reference image from detail
+    "viewing_ref": None,
     "ref_from_gallery": None,
 }.items():
     if key not in st.session_state:
@@ -254,7 +233,6 @@ def get_supabase():
 
 
 def save_to_supabase(image_b64, prompt, aspect, resolution, ref_b64_list=None):
-    """Save image + metadata + reference thumbnails to Supabase."""
     sb = get_supabase()
     if sb is None:
         return None
@@ -265,7 +243,6 @@ def save_to_supabase(image_b64, prompt, aspect, resolution, ref_b64_list=None):
         sb.storage.from_("generated-images").upload(file_path, img_bytes, {"content-type": "image/png"})
         public_url = sb.storage.from_("generated-images").get_public_url(file_path)
 
-        # Save reference image thumbnails to storage too
         ref_urls = []
         if ref_b64_list:
             for ri, rb64 in enumerate(ref_b64_list):
@@ -335,8 +312,8 @@ if not st.session_state.loaded_from_db:
             "url": row.get("image_url", ""),
             "b64": None,
             "created_at": row.get("created_at", ""),
-            "ref_b64s": [],               # base64 refs (only for current session)
-            "ref_urls": meta.get("ref_urls", []),  # persisted ref URLs from supabase
+            "ref_b64s": [],
+            "ref_urls": meta.get("ref_urls", []),
         })
     st.session_state.loaded_from_db = True
 
@@ -390,9 +367,7 @@ def get_img_src(img):
         return img["url"]
     return None
 
-
 def get_ref_sources(img):
-    """Get all reference image sources (b64 or url) for an image."""
     sources = []
     for rb in img.get("ref_b64s", []):
         sources.append(f"data:image/png;base64,{rb}")
@@ -402,13 +377,13 @@ def get_ref_sources(img):
 
 
 # ---------------------------------------------------------------------------
-# TOP BAR
+# TOP BAR (fixed, always on top)
 # ---------------------------------------------------------------------------
 st.markdown(f"""
 <div class="top-bar">
     <div class="top-bar-logo">🍌 Nano Banana Studio</div>
     <div class="top-bar-right">
-        <span class="top-bar-pill"><b>●</b>&nbsp; Nano Banana Pro</span>
+        <span class="top-bar-pill">● Nano Banana Pro</span>
         <span class="top-bar-pill">{len(st.session_state.images)} images</span>
     </div>
 </div>
@@ -419,13 +394,12 @@ st.markdown(f"""
 # VIEWING A REFERENCE IMAGE (sub-detail)
 # ---------------------------------------------------------------------------
 if st.session_state.viewing_ref is not None:
-    st.markdown("#### 🖼 Reference Image")
-    ref_src = st.session_state.viewing_ref
-    st.image(ref_src, use_container_width=False, width=600)
+    st.subheader("🖼 Reference Image")
+    st.image(st.session_state.viewing_ref, use_container_width=False, width=600)
     if st.button("← Back to image details", key="back_from_ref"):
         st.session_state.viewing_ref = None
         st.rerun()
-    st.markdown("---")
+    st.divider()
 
 
 # ---------------------------------------------------------------------------
@@ -444,36 +418,31 @@ elif st.session_state.viewing_image is not None:
                 st.image(src, use_container_width=True)
 
             with col_info:
-                # Close
                 if st.button("✕  Close", key="close_detail", use_container_width=True):
                     st.session_state.viewing_image = None
                     st.rerun()
 
-                st.markdown("")
-
-                # ---- PROMPT ----
-                st.markdown('<div class="section-title">✦ PROMPT</div>', unsafe_allow_html=True)
+                # PROMPT
+                st.markdown('<div class="detail-section-title">✦ PROMPT</div>', unsafe_allow_html=True)
                 st.markdown(
-                    f'<div class="prompt-text">{img.get("prompt", "No prompt")}</div>',
+                    f'<div class="detail-prompt">{img.get("prompt", "No prompt")}</div>',
                     unsafe_allow_html=True,
                 )
-                st.markdown("<br>", unsafe_allow_html=True)
 
-                # ---- INFORMATION ----
-                st.markdown('<div class="section-title">ⓘ INFORMATION</div>', unsafe_allow_html=True)
+                # INFORMATION
+                st.markdown('<div class="detail-section-title">ⓘ INFORMATION</div>', unsafe_allow_html=True)
                 created = str(img.get("created_at", ""))[:16].replace("T", " ")
                 st.markdown(f"""
-                <div class="info-row"><span class="info-label">Model</span><span class="info-value">Nano Banana Pro</span></div>
-                <div class="info-row"><span class="info-label">Quality</span><span class="info-value">{img.get('resolution', '2K')}</span></div>
-                <div class="info-row"><span class="info-label">Aspect Ratio</span><span class="info-value">{img.get('aspect_ratio', 'Auto')}</span></div>
-                <div class="info-row"><span class="info-label">Created</span><span class="info-value">{created}</span></div>
+                <div class="detail-info-row"><span class="detail-info-label">Model</span><span class="detail-info-value">Nano Banana Pro</span></div>
+                <div class="detail-info-row"><span class="detail-info-label">Quality</span><span class="detail-info-value">{img.get('resolution', '2K')}</span></div>
+                <div class="detail-info-row"><span class="detail-info-label">Aspect Ratio</span><span class="detail-info-value">{img.get('aspect_ratio', 'Auto')}</span></div>
+                <div class="detail-info-row"><span class="detail-info-label">Created</span><span class="detail-info-value">{created}</span></div>
                 """, unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
 
-                # ---- REFERENCE IMAGES USED ----
+                # REFERENCE IMAGES USED
                 ref_sources = get_ref_sources(img)
                 if ref_sources:
-                    st.markdown('<div class="section-title">🖼 REFERENCE IMAGES USED</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="detail-section-title">🖼 REFERENCE IMAGES USED</div>', unsafe_allow_html=True)
                     ref_cols = st.columns(min(len(ref_sources), 4), gap="small")
                     for ri, rsrc in enumerate(ref_sources):
                         with ref_cols[ri % len(ref_cols)]:
@@ -481,32 +450,25 @@ elif st.session_state.viewing_image is not None:
                             if st.button("Open", key=f"openref_{ri}", use_container_width=True):
                                 st.session_state.viewing_ref = rsrc
                                 st.rerun()
-                    st.markdown("<br>", unsafe_allow_html=True)
 
-                # ---- ACTIONS ----
-                st.markdown('<div class="section-title">⚡ ACTIONS</div>', unsafe_allow_html=True)
+                # ACTIONS
+                st.markdown('<div class="detail-section-title">⚡ ACTIONS</div>', unsafe_allow_html=True)
 
-                # Download
                 if img.get("b64"):
                     st.download_button(
-                        "⬇  Download",
-                        data=base64.b64decode(img["b64"]),
+                        "⬇  Download", data=base64.b64decode(img["b64"]),
                         file_name=f"nanoBanana_{img.get('id', 'image')[:8]}.png",
-                        mime="image/png",
-                        use_container_width=True,
-                        key="detail_dl",
+                        mime="image/png", use_container_width=True, key="detail_dl",
                     )
                 elif img.get("url"):
                     st.link_button("⬇  Download", img["url"], use_container_width=True)
 
-                # Use as reference
                 if st.button("🖼  Use as Reference", use_container_width=True, key="detail_ref"):
                     st.session_state.ref_from_gallery = img
                     st.session_state.viewing_image = None
                     st.toast("Image set as reference!", icon="🖼️")
                     st.rerun()
 
-                # Delete
                 if st.button("🗑  Delete", use_container_width=True, key="detail_del"):
                     if img.get("id"):
                         delete_from_supabase(img["id"])
@@ -515,7 +477,7 @@ elif st.session_state.viewing_image is not None:
                     st.toast("Deleted", icon="🗑️")
                     st.rerun()
 
-            st.markdown("---")
+            st.divider()
 
 
 # ---------------------------------------------------------------------------
@@ -546,7 +508,6 @@ else:
 
                 st.image(src, use_container_width=True)
 
-                # Action buttons
                 b1, b2, b3 = st.columns([1, 1, 1], gap="small")
                 with b1:
                     if st.button("👁 View", key=f"v_{actual_idx}", use_container_width=True):
@@ -572,7 +533,6 @@ else:
                         st.toast("Deleted", icon="🗑️")
                         st.rerun()
 
-                # Prompt caption + ref count
                 prompt_short = img.get("prompt", "")[:50]
                 if len(img.get("prompt", "")) > 50:
                     prompt_short += "…"
@@ -584,7 +544,7 @@ else:
 # ---------------------------------------------------------------------------
 # BOTTOM — Reference upload + Prompt + Controls
 # ---------------------------------------------------------------------------
-st.markdown('<div style="height:12px"></div>', unsafe_allow_html=True)
+st.markdown("")
 
 with st.expander("📎 Reference Images (optional — up to 14)", expanded=False):
     uploaded_refs = st.file_uploader(
@@ -649,9 +609,8 @@ if generate_clicked:
     elif not GOOGLE_API_KEY:
         st.toast("Google API key not configured!", icon="🔑")
     else:
-        # Collect reference bytes
         ref_bytes = []
-        ref_b64_for_storage = []  # base64 versions to store with the image record
+        ref_b64_for_storage = []
 
         if uploaded_refs:
             for ref in uploaded_refs[:14]:
@@ -677,8 +636,7 @@ if generate_clicked:
                     "prompt": prompt_text,
                     "aspect_ratio": aspect_ratio,
                     "resolution": resolution,
-                    "url": None,
-                    "b64": b64,
+                    "url": None, "b64": b64,
                     "created_at": datetime.now().isoformat(),
                     "ref_b64s": ref_b64_for_storage,
                     "ref_urls": [],
